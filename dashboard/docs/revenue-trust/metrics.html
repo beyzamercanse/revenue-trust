@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>metrics · revenue-trust</title><link rel="stylesheet" href="../../assets/style.css"><body><main class="doc-page"><a href="../../index.html#revenue-trust/evidence">← Back to project evidence</a><h1>Metric definitions and data contracts</h1>
+<p>All financial calculations use integer pence until display. The fixture uses GBP only. Dates are ISO <code>YYYY-MM-DD</code>; the simulation has no time-of-day or timezone ambiguity. A real source must declare its timestamp timezone and business-day boundary before ingestion.</p>
+<p>| Metric | Exact definition | Important exclusions / interpretation |</p>
+<p>|---|---|---|</p>
+<p>| Gross revenue | Sum of <code>gross_cents</code> on paid orders, by order date | Cancelled orders excluded; taxes and shipping absent from the simulation |</p>
+<p>| Discounts | Sum of paid-order <code>discount_cents</code>, by order date | A source correction can restate historical order-date amounts |</p>
+<p>| Paid sales | Gross revenue minus discounts | Merchandise amount before refunds |</p>
+<p>| Refunds | Sum of accepted refund amounts, by refund posting date | May refer to orders from earlier periods; quarantined events excluded |</p>
+<p>| Net revenue | Gross revenue minus discounts minus accepted refunds | Not profit and not a full accounting revenue-recognition policy |</p>
+<p>| Paid orders | Count of unique current orders with <code>status=&#x27;paid&#x27;</code>, by order date | Refunded orders remain paid orders; no session conversion inference |</p>
+<p>| Refund amount ratio | Period refund postings / period paid sales | Amount-weighted period ratio, not share of orders ultimately refunded |</p>
+<p>| Average paid order value | Paid sales / paid orders | Does not deduct refunds, avoiding an inconsistent order-date denominator |</p>
+<p>| Monthly repeat-purchase retention | Distinct cohort customers with ≥1 paid order in activity month / original cohort size | First observed paid purchase defines cohort; observed history may be left-censored in real data |</p>
+<p>| Daily ledger match | Modeled net revenue equals signed ledger postings on every observed date | Fixture consistency test; not independent financial assurance |</p>
+<p>Calendar-normalized comparison divides each complete month by its actual number of calendar days. This corrects exposure length, not seasonality, weekday mix, channel mix, or causal confounding.</p>
+<h2>Revenue change decomposition</h2>
+<p>For prior period 0 and current period 1, let <code>N</code> be paid-order count, <code>A</code> average paid order value, and <code>R</code> refund postings. Then:</p>
+<pre><code>net = N × A − R
+volume effect = (N1 − N0) × A0
+average-value effect = N1 × (A1 − A0)
+refund effect = −(R1 − R0)
+sum of effects = net1 − net0</code></pre>
+<p>This is an exact, ordered arithmetic bridge before display rounding. It is descriptive, not a causal attribution; changing the decomposition order changes how interaction effects are allocated. The dashboard compares the last two complete months of this fixed Jan–Jun 2025 demo.</p>
+<h2>API artifact contract</h2>
+<p><code>dashboard/data.json</code> is generated only after quality checks pass. Monetary fields in JSON use GBP display units, while the SQLite source of truth uses pence. It includes monthly and monthly-channel aggregates, overall channel totals, monthly cohort observations, quality results, quarantine reasons, the full daily reconciliation series, source provenance, and interpretation limits. The static dashboard does not issue database queries or expose raw customer-level records.</p>
+<h2>Source limitations</h2>
+<p>All sources use a fixed seed and are fictional. The source generator creates both operational records and the corresponding ledger: reconciliation proves code consistency, not independence between real systems. The six-month fixture includes deliberate duplicate delivery, older versions, a mobile revenue disruption scenario, and three invalid refunds. It is useful for demonstrating contracts and failures; it cannot establish a real market finding or business outcome.</p></main></body></html>

@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>case-study · revenue-trust</title><link rel="stylesheet" href="../../assets/style.css"><body><main class="doc-page"><a href="../../index.html#revenue-trust/evidence">← Back to project evidence</a><h1>Revenue Trust — executive case study</h1>
+<p><strong>Decision:</strong> prioritize investigation of the mobile paid-order decline and refund increase before increasing acquisition spend.</p>
+<p><strong>Status:</strong> reproducible portfolio simulation. The following findings are measured from the generated fixture, not a real company&#x27;s performance. No commercial impact is claimed.</p>
+<h2>What happened?</h2>
+<p>June net revenue was <strong>£90,290.90</strong>, compared with <strong>£102,564.44</strong> in May: a <strong>£12,273.54 decline (11.97%)</strong>. Because June has one fewer day, the decline in net revenue per calendar day was <strong>9.03%</strong>. The available data contains orders, refunds, and ledger entries; it does not contain site traffic, marketing spend, customer support contacts, or product costs.</p>
+<p>| Arithmetic contributor | Contribution to June minus May net revenue |</p>
+<p>|---|---:|</p>
+<p>| Paid-order volume: 1,181 → 1,077 | −£9,303.97 |</p>
+<p>| Average paid order value | +£489.57 |</p>
+<p>| Refund postings: £3,089.28 → £6,548.42 | −£3,459.14 |</p>
+<p>| <strong>Total</strong> | <strong>−£12,273.54</strong> |</p>
+<p>These are arithmetic contributions, not causal estimates. The volume-first bridge uses May&#x27;s average paid order value and assigns its interaction term to the average-value component.</p>
+<h2>Where is it concentrated?</h2>
+<p>Mobile net revenue fell from <strong>£26,640.63 to £15,372.06</strong>, a <strong>£11,268.57</strong> decline. Mobile paid orders fell from <strong>302 to 214</strong> and its refund postings rose from <strong>£934.53 to £3,333.07</strong>. Web revenue also declined, while Marketplace partially offset the loss. Mobile is therefore the first investigation target, not proof of a diagnosed real-world cause. The fictional generator intentionally includes a mobile disruption so the exercise has an explainable reference scenario.</p>
+<h2>Can the numbers be trusted?</h2>
+<p>The model reduced <strong>15,248 delivered source events</strong> to <strong>14,770 unique source records</strong>, selected the latest version of each of <strong>7,089 orders</strong>, and counted <strong>6,688 paid orders</strong>. It accepted <strong>413 refunds</strong> and quarantined <strong>3 invalid refund records</strong>. Modeled net revenue matched the fictional ledger on <strong>all 181 observed dates</strong> at integer-pence precision. Eight automated tests validate reruns, revisions, conflicts, malformed dates, invalid refunds, retention boundaries, and failed-ledger rollback.</p>
+<p>The ledger is generated from the same simulated business process. A real deployment would reconcile to a genuinely independent, Finance-approved accounting source.</p>
+<h2>Recommended actions and how to measure them</h2>
+<ul>
+<li><strong>Investigate mobile payment and checkout failures.</strong> Join payment attempt and release logs before proposing a fix. Measure paid completion per eligible payment attempt, segmented by device and payment method. This denominator is absent from the current dataset.</li>
+<li><strong>Trace mobile refund reasons and affected products.</strong> Join reason codes and customer-service records; separate product returns from duplicate charges and payment reversals. Evaluate the order-cohort refund probability only after a complete observation window.</li>
+<li><strong>Protect the revenue reporting contract.</strong> Keep source-version handling and ledger reconciliation as publication gates. Route unresolved refunds to an owner, track their age, and document historical restatements when late corrections arrive.</li>
+</ul>
+<p>Success criteria are proposed measurements. A real intervention&#x27;s causal effect would need a valid experiment or an appropriately justified observational design. This portfolio does not claim that the recommendations increased revenue.</p>
+<h2>Five-minute presentation outline</h2>
+<ul>
+<li>Business question and precise net revenue definition.</li>
+<li>May–June trend, calendar-day adjustment, and the arithmetic bridge.</li>
+<li>Channel evidence and the limits of causal interpretation.</li>
+<li>Architecture, quarantine, reconciliation, and a failing-ledger demonstration.</li>
+<li>Prioritized next actions, measurement plan, and production tradeoffs.</li>
+</ul></main></body></html>

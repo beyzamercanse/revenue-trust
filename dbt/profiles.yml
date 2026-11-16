@@ -1,0 +1,7 @@
+revenue_trust:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: revenue.duckdb
+      threads: 2

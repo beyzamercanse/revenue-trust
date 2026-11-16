@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+warehouse/
+.venv/
+dbt/target/
+dbt/logs/
+dbt/*.duckdb*
+data/raw/*.jsonl
+dbt/seeds/*.csv
+

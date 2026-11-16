@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>architecture · revenue-trust</title><link rel="stylesheet" href="../../assets/style.css"><body><main class="doc-page"><a href="../../index.html#revenue-trust/evidence">← Back to project evidence</a><h1>Architecture and operating design</h1>
+<h2>Business contract</h2>
+<p>Finance and Growth need the same definition of net revenue. The output should answer where June&#x27;s decline is concentrated and should refuse to publish unreconciled numbers. The reference implementation models merchandise sales and refunds in GBP, without VAT, shipping, cost of goods, exchange rates, accrual accounting, or payment processor fees.</p>
+<h2>Implemented local architecture</h2>
+<pre><code>flowchart LR
+    A[Seeded fictional orders and order revisions] --&gt; D[Append-only SQLite landing]
+    B[Refund events with known faults] --&gt; D
+    C[Fictional ledger postings] --&gt; D
+    D --&gt; E[Newest version per natural key]
+    E --&gt; F[Paid-order fact]
+    E --&gt; G[Refund validation]
+    G --&gt; H[Refund quarantine]
+    G --&gt; I[Accepted refund fact]
+    F --&gt; J[Daily channel revenue mart]
+    I --&gt; J
+    F --&gt; K[Monthly repeat-purchase cohorts]
+    C --&gt; L[Daily ledger reconciliation]
+    J --&gt; L
+    L --&gt; M{All quality gates pass?}
+    K --&gt; M
+    M --&gt;|Yes| N[JSON dashboard artifact]
+    M --&gt;|No| O[Rollback; preserve previous artifact]</code></pre>
+<p>| Layer | Grain / key | Responsibility |</p>
+<p>|---|---|---|</p>
+<p>| Raw orders | One distinct payload fingerprint; natural key <code>(order_id, version)</code> | Retain valid source versions, ignore exact redelivery, reject conflicting same-version payloads |</p>
+<p>| Raw refunds | One distinct payload fingerprint; natural key <code>(refund_id, version)</code> | Same event history rules |</p>
+<p>| Raw ledger | One immutable <code>entry_id</code> | Accept append-only postings; corrections require new adjusting entries |</p>
+<p>| <code>stg_orders</code> | One <code>order_id</code> | Window function selects highest source version regardless of delivery order |</p>
+<p>| <code>fct_orders</code> | One paid <code>order_id</code> | Defines paid merchandise amount in integer pence |</p>
+<p>| <code>fct_refunds</code> | One valid <code>refund_id</code> | Preserves event posting date and order dimensions |</p>
+<p>| <code>refund_quarantine</code> | One rejected <code>refund_id</code> | Explains invalid records and retains enough information for triage |</p>
+<p>| <code>mart_daily_revenue</code> | One <code>(day, channel)</code> | Certified additive financial measures |</p>
+<p>| <code>mart_reconciliation</code> | One day | Full date coverage, with zero as the missing-side amount |</p>
+<p>| <code>mart_cohorts</code> | One <code>(cohort month, activity month)</code> | First-paid-purchase cohort; distinct repeat customers |</p>
+<h2>Failure handling</h2>
+<ul>
+<li>Unexpected fields, invalid types, non-canonical dates, negative order amounts, and source-version collisions fail the load.</li>
+<li>Exact duplicates are ignored by fingerprint, without suppressing distinct later revisions.</li>
+<li>Refunds without a paid order, refunds before the sale, nonpositive amounts, and per-order excess refunds are quarantined.</li>
+<li>If otherwise-valid refunds collectively exceed a payment, <strong>all</strong> otherwise-valid refunds for that order are quarantined. This favors an explicit unresolved state over arbitrary event selection.</li>
+<li>Daily reconciliation discrepancies block the transaction. The previous database state and dashboard remain available.</li>
+<li>A late refund whose order has not yet arrived can move out of quarantine after the order arrives, because staging and marts are rebuilt from source history on every successful run.</li>
+<li>A failed-run alert and durable run audit store are production requirements, not implemented services. The command exits nonzero; CI captures its log.</li>
+</ul>
+<h2>Incremental semantics and tradeoff</h2>
+<p>Landing is incremental: only unseen event payloads are inserted. Marts are rebuilt transactionally, which is appropriate for this small fixture and makes late corrections safe. At warehouse scale, maintain a changed-order set and rebuild all affected original-sale and refund-date partitions, then reconcile those partitions before promoting a new dashboard snapshot. A simple three-day lookback would silently miss older corrections and is deliberately not represented as sufficient.</p>
+<h2>Proposed production architecture — not deployed</h2>
+<pre><code>flowchart LR
+    A[Order service CDC / API] --&gt; D[Cloud Storage raw objects]
+    B[Payment and refund API] --&gt; D
+    C[Finance ledger export] --&gt; D
+    D --&gt; E[BigQuery raw partitions]
+    E --&gt; F[dbt staging and facts]
+    F --&gt; G[dbt revenue marts and tests]
+    G --&gt; H[Certified BI measures and dashboard]
+    I[Dagster schedules / retries / backfills] --&gt; D
+    I --&gt; F
+    G --&gt; J[Quality and reconciliation alerts]</code></pre>
+<p>Choose BigQuery only when that matches target employers; DuckDB, Snowflake, or a Microsoft stack can serve the same modeling contract. The engineering evidence is the contract and operating behavior, not a list of vendors.</p>
+<p>Production acceptance criteria: replay any historical partition with identical results; reconcile to the approved ledger tolerance; detect missing sources before publication; preserve source version and load provenance; restrict raw customer identifiers; retain an incident runbook; establish a cost cap and record scanned bytes. Targets such as “daily by 07:00 UTC” are design requirements to agree with a real stakeholder, not achieved uptime claims.</p>
+<h2>Ownership and security design</h2>
+<p>Finance owns the approved revenue definition and reconciliation policy. Data Engineering owns ingestion and backfills. Analytics Engineering owns modeled facts, tests, documentation, and BI contract. Analysts own interpretation and decision recommendations. The demo has fictional customer IDs and no secrets or personal data. A production version would use service-account permissions, secret management, least-privilege BI views, and agreed retention rules.</p></main></body></html>
