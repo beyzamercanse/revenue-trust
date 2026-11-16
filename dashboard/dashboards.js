@@ -81,7 +81,7 @@
     ];
     C.hbars(figure(root, {
       title: 'What changed from May to June',
-      sub: 'The parts add up to the total change of <b>' + esc(f.gbpSigned(t.total)) + '</b>. Red lowers revenue, blue raises it.',
+      sub: 'The parts add up to the total change of <b>' + esc(f.gbpSigned(t.total)) + '</b>. Pink lowers revenue, cyan raises it.',
       table: C.table([{ label: 'Component', value: 'label' }, { label: 'Change', value: function (r) { return f.gbpSigned(r.value); }, num: true }],
         parts.concat([{ label: 'Total', value: t.total, _total: true }]))
     }), { rows: parts, fmt: f.gbpSigned, shortFmt: f.gbpSignedShort, colorFor: function (v) { return v < 0 ? 'var(--neg)' : 'var(--pos)'; }, labelWidth: 190 });
@@ -136,10 +136,10 @@
     C.hbars(figure(root, {
       title: 'Onboarding funnel by arm', span: true,
       sub: 'Share of assigned users reaching each step. Users who never saw onboarding stay in the denominator.',
-      legend: [{ label: 'Control (' + ctl.assigned_users.toLocaleString('en-GB') + ')', color: 'var(--series-1)' }, { label: 'Treatment (' + trt.assigned_users.toLocaleString('en-GB') + ')', color: 'var(--series-2)' }],
+      legend: [{ label: 'Control (' + ctl.assigned_users.toLocaleString('en-GB') + ')', color: 'var(--series-2)' }, { label: 'Treatment (' + trt.assigned_users.toLocaleString('en-GB') + ')', color: 'var(--series-1)' }],
       table: C.table([{ label: 'Step', value: 'stage' }, { label: 'Control', value: function (s) { return f.int(s.control) + ' (' + f.pct(s.control / ctl.assigned_users) + ')'; }, num: true },
         { label: 'Treatment', value: function (s) { return f.int(s.treatment) + ' (' + f.pct(s.treatment / trt.assigned_users) + ')'; }, num: true }], d.funnel)
-    }), { categories: stages, series: [{ name: 'Control', color: 'var(--series-1)', values: ctlRates }, { name: 'Treatment', color: 'var(--series-2)', values: trtRates }], fmt: function (v) { return f.pct(v); }, max: 1, labelWidth: 150 });
+    }), { categories: stages, series: [{ name: 'Control', color: 'var(--series-2)', values: ctlRates }, { name: 'Treatment', color: 'var(--series-1)', values: trtRates }], fmt: function (v) { return f.pct(v); }, max: 1, labelWidth: 150 });
 
     var ic = r.interval_check;
     function rowsFor(key) {
