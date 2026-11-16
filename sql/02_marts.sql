@@ -40,3 +40,11 @@ SELECT g.cohort, g.activity_month,
 FROM grid g LEFT JOIN first_order f ON f.cohort=g.cohort
 LEFT JOIN activity a ON a.customer_id=f.customer_id AND a.activity_month=g.activity_month
 GROUP BY g.cohort,g.activity_month,g.cohort_size;
+
+-- Month x channel grain for the channel bridge (scripts/bridge.py).
+DROP TABLE IF EXISTS mart_month_channel;
+CREATE TABLE mart_month_channel AS
+SELECT substr(day,1,7) AS month, channel, SUM(orders) AS orders,
+ SUM(gross_cents-discount_cents) AS paid_cents, SUM(refund_cents) AS refund_cents,
+ SUM(net_cents) AS net_cents
+FROM mart_daily_revenue GROUP BY substr(day,1,7), channel;

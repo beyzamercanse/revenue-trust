@@ -1,79 +1,112 @@
 # Revenue Trust
 
-**A revenue data product that explains a sales decline and proves the numbers reconcile.**
+Net revenue fell 12% from May to June. Before anyone acts on that, two things need to be true: the number has to be right, and someone has to know where the drop actually came from. This project does both: it builds revenue models from raw orders, refunds and a payment ledger, refuses to publish if the totals don't reconcile, and then breaks the June decline down by channel.
 
-Primary fit: **Analytics Engineer**. Secondary fit: Data Analyst and Data Engineer.
+**Stack:** Python, SQL (SQLite), dbt + DuckDB, GitHub Actions
+**Data:** a generated e-commerce scenario (seed 41, January–June 2025). The orders, refunds and ledger are simulated, so the figures describe the scenario, not a real company.
+**Dashboard:** [project page](https://beyzamercanse.github.io/project1/work/revenue-trust.html) · or open `dashboard/index.html` locally
 
-Business question: *Why did June net revenue fall, which channel deserves investigation, and can Finance trust the answer?*
+## Key numbers
 
-This repository is a working local reference implementation with an entirely **synthetic**, reproducible commerce dataset. Its outputs are portfolio demonstration results, not a real employer's revenue, a client engagement, or claimed business impact.
+| | |
+|---|---:|
+| Source events delivered | 15,248 |
+| Unique source records after deduplication | 14,770 |
+| Paid orders | 6,688 |
+| Net revenue, Jan–Jun | £577,067.86 |
+| Days reconciled to the ledger | 181 of 181, to the penny |
+| Invalid refunds quarantined | 3 |
+| June vs May net revenue | −£12,273.54 (−11.97%) |
+| Share of the drop from Mobile | 92% |
 
-## Open the evidence
+## Architecture
 
-- [Architecture and operating design](docs/architecture.md)
-- [Executive case study and recommendations](docs/case-study.md)
-- [Metric definitions and data contracts](docs/metric-contracts.md)
-- [Dashboard data and integration contract](dashboard/README.md)
-- [Optional dbt / DuckDB port](dbt/README.md)
-- [Meaningful failure and recovery tests](tests/test_pipeline.py)
-
-## Run in one minute
-
-Requires Python 3.9+ with the standard library; no credentials, paid cloud, package installation, or internet access is needed for the baseline.
-
-```sh
-python3 scripts/pipeline.py
-python3 -m unittest discover -s tests -v
-python3 scripts/pipeline.py
+```mermaid
+flowchart LR
+    A[orders / refunds / ledger<br>JSONL deliveries] --> B[Append-only landing<br>SHA-256 fingerprint per record]
+    B --> C[Staging<br>latest version per order]
+    C --> D[Refund checks<br>quarantine invalid rows]
+    D --> E[fct_orders · fct_refunds]
+    E --> F[mart_daily_revenue<br>day × channel]
+    F --> G{Quality gates<br>incl. ledger match}
+    G -- pass --> H[dashboard/data.json]
+    G -- fail --> X[Roll back, keep last<br>published file]
+    F --> I[mart_month_channel] --> J[Channel bridge]
+    J --> H
 ```
 
-The first run generates raw JSONL fixtures, lands unique source events in `warehouse/revenue.sqlite`, runs SQL models and quality gates, exports `dashboard/data.json`, and creates seeds for the optional dbt port. The final command should report `new_events: 0`. Changing or corrupting the ledger should block publication instead of producing a plausible-looking dashboard.
+## How it works
 
-The fixture covers 1 January–30 June 2025: 15,248 delivered events, 14,770 unique source records, 7,089 current orders, and 6,688 paid orders. The verified output contains **£577,067.86 net revenue**, **3 quarantined invalid refunds**, and **181 daily ledger matches**. A duplicate delivery or an older source version cannot inflate revenue. A late corrected version updates historical results; a ledger discrepancy rolls back the transaction and preserves the last published JSON.
+**Landing.** Every delivered record is fingerprinted (SHA-256 of its canonical JSON) and inserted with `ON CONFLICT DO NOTHING`, so a retried delivery can't be counted twice. If the same order ID and version arrive with different contents, the load stops. Two versions can't both be right, and I'd rather fail than pick one quietly.
 
-## What makes this interview-worthy
+**Staging.** Orders get revised, so `stg_orders` keeps only the latest version per order with a window function. Money is stored as integer pence throughout. Floats and reconciliation don't mix.
 
-1. A real business decision drives the model: investigate mobile revenue loss, with a decomposition of volume, paid order value, and refunds.
-2. Definitions are explicit: paid orders differ from website conversion; net revenue differs from profit; refunds belong to their posting dates.
-3. Data contracts handle integer money, duplicates, out-of-order versions, orphan refunds, excess refunds, and malformed dates.
-4. The dashboard is downstream of reconciliation and quality gates. A failed financial check prevents publication.
-5. Tests exercise the operating risks: reruns, late changes, conflicting versions, invalid dates, and rollback.
+**Refund rules.** A refund is quarantined (kept with a reason, not deleted) if its order doesn't exist, isn't paid, the amount is zero or negative, it's dated before the sale, or it pushes total refunds above what was paid. Three refunds in the data fail these rules.
 
-## Implemented versus proposed
+**Publication gates.** Seven checks run inside the same transaction as the load: primary keys, refund referential integrity, no negative paid amounts, daily ledger reconciliation, cohort bounds and mart-to-mart consistency. If any fails, the transaction rolls back and the previously published `data.json` stays as it was. One test appends an unbalanced ledger entry and checks exactly that.
 
-| Implemented and verified | Automation configuration | Production extension design |
-|---|---|---|
-| Python ingestion; SQLite SQL marts; append-only event landing; quarantine; reconciliation; JSON export; eight automated tests; executed dbt/DuckDB port with four models and ten passing data tests | GitHub Actions CI configuration | BigQuery partitioned warehouse; managed ingestion; Dagster orchestration; dbt deployment; service accounts; alert routing; BI semantic definitions |
+**Explaining June.** The month-level bridge splits the change into order volume, average order value and refunds. That says *how* revenue fell but not *where*, so I added a channel bridge (below).
 
-The baseline incrementally **lands** new source versions, then fully rebuilds the small local marts. It does not claim incremental warehouse transformations, streaming, production scheduling, or a deployed cloud stack. The optional dbt port uses full table materializations.
+## The channel bridge
 
-## CV wording you can defend after reproducing and explaining it
+`scripts/bridge.py` splits each channel's May→June change into four parts:
 
-> Built a reproducible commerce revenue pipeline in Python and SQL, deduplicating 15,248 delivered events, quarantining invalid refunds, and reconciling modeled revenue to 181 daily ledger totals; verified idempotent reruns and late corrections with automated tests.
+- **calendar:** June has 30 days, May has 31. That alone costs revenue at May's daily rate.
+- **volume:** paid orders above or below May's daily run-rate.
+- **order value:** change in average paid order value.
+- **refunds:** change in refund postings.
 
-Analyst variation:
+Everything is computed in integer pence and order value is taken as the residual, so each channel's parts add up exactly to its change and the channels add up to the total. If they don't, the bridge raises instead of publishing.
 
-> Investigated an 11.97% month-on-month revenue decline in a simulated commerce dataset, decomposing the change into order volume, average paid order value, and refund effects, and delivering a decision-focused dashboard with documented metric definitions.
+| Channel | Calendar | Volume | Order value | Refunds | Change |
+|---|---:|---:|---:|---:|---:|
+| Mobile | −£889.52 | −£7,145.62 | −£834.89 | −£2,398.54 | **−£11,268.57** |
+| Web | −£1,711.80 | −£1,896.32 | +£723.91 | −£975.82 | **−£3,860.03** |
+| Marketplace | −£806.86 | +£3,072.51 | +£674.19 | −£84.78 | **+£2,855.06** |
+| **Total** | −£3,408.18 | −£5,969.43 | +£563.21 | −£3,459.14 | **−£12,273.54** |
 
-Do not describe the simulated revenue as money earned, savings delivered, or a real commercial result. Add dbt, cloud, orchestration, or BI tooling to your CV only after personally running and explaining that extension.
+Two things stand out. About £3.4k of the "decline" is just a shorter month. And Mobile is where the real problem is: fewer paid orders than its own run-rate, plus refunds that more than tripled. Marketplace grew and hides part of it in the total. This tells you where to look, not why it happened. That needs checkout and payment logs, which this dataset doesn't have.
 
-## Interview walkthrough
+## Run it
 
-Start with the business question and the June driver chart. Explain why comparing calendar months requires daily normalization. Show a raw transport duplicate, then the window function selecting the newest order version. Run the late-correction test and the failed-ledger test. End with the tradeoff: a cheap, deterministic reference implementation now; partition-aware warehouse processing when real volume and operating requirements justify it.
+Python 3.9+, standard library only.
 
-## Suggested next milestones
+```sh
+python3 scripts/pipeline.py               # generate fixtures, load, model, check, publish
+python3 -m unittest discover -s tests -v  # 12 tests
+python3 scripts/pipeline.py               # second run: new_events = 0, same output
+python3 dashboard/refresh.py              # update the offline dashboard's data.js
+```
 
-- Reproduce the verified dbt port, inspect its generated lineage and add an independently written model.
-- Replace fictional sources with a permissioned orders/refunds/ledger extract. Do not claim that an e-commerce orders-only dataset supplies accounting ground truth.
-- Add source freshness SLAs, incremental partition rebuilds, and orchestration failure alerts only after the source update contract is settled.
-- Implement the same certified measures in the BI tool your target job uses; validate the BI totals against `mart_reconciliation`.
+The dbt port (`dbt/`) rebuilds the four core models in DuckDB with ten data tests. Setup is in [dbt/README.md](dbt/README.md).
 
-All fixture data is generated locally. The code is supplied under the [MIT license](LICENSE); generated fictional data is included in the same grant.
+## Tests worth reading
 
-## Interactive dashboard and portfolio
+- rerunning is idempotent and produces a byte-identical `data.json`
+- a late order revision updates history; an older version can't overwrite a newer one
+- conflicting payloads for the same version are rejected
+- malformed dates (`2025-02-30`) stop the load before anything is published
+- an unbalanced ledger blocks publication and rolls back the load
+- the channel bridge balances to the penny, including for a channel that didn't exist in the base month
 
-[Open the portfolio dashboard](https://beyza-data-portfolio.dewyisle36.chatgpt.site/#revenue-trust/dashboard) · [Project case study](https://beyza-data-portfolio.dewyisle36.chatgpt.site/#revenue-trust)
+## Repository layout
 
-The hosted portfolio initially requires owner access. The self-contained local dashboard is available without hosting: open `dashboard/index.html`. After rerunning the data pipeline, run `python3 dashboard/refresh.py` to refresh its browser snapshot. All default dashboard figures are synthetic and generated by the pipeline.
+```text
+scripts/generate_demo.py   seeded fixture: orders, refunds, ledger, deliberate faults
+scripts/pipeline.py        landing, transforms, quality gates, export
+scripts/bridge.py          channel revenue bridge in integer pence
+sql/01_staging.sql         latest versions, refund quarantine, facts
+sql/02_marts.sql           daily revenue, reconciliation, cohorts, month × channel
+dbt/                       the same models in dbt + DuckDB
+tests/                     pipeline and bridge tests
+docs/                      architecture, metric definitions, case study
+dashboard/                 static dashboard built from data.json
+```
 
-AI assisted the initial code and documentation. Before using this project in applications, reproduce it, review its definitions and add an independently understood extension.
+More detail: [architecture](docs/architecture.md) · [metric definitions](docs/metric-contracts.md) · [case study](docs/case-study.md)
+
+## What I'd do with real data
+
+Reconcile against a ledger that Finance owns, not one generated next to the orders. Join payment-attempt logs so mobile checkout failures can be measured against attempts rather than inferred from order counts. And move the marts to incremental, partitioned builds once volume justifies it. At 15k rows a full rebuild takes under two seconds, so I kept it simple.
+
+MIT licensed.

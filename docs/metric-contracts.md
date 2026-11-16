@@ -31,6 +31,17 @@ sum of effects = net1 − net0
 
 This is an exact, ordered arithmetic bridge before display rounding. It is descriptive, not a causal attribution; changing the decomposition order changes how interaction effects are allocated. The dashboard compares the last two complete months of this fixed Jan–Jun 2025 demo.
 
+## Channel bridge
+
+For channel *c*, base month *b* (May) and comparison month *m* (June), with *d* = days(m) / days(b):
+
+- **calendar** = paid(b) × (d − 1). What the base month's daily rate loses or gains from the month length alone.
+- **volume** = (orders(m) − orders(b) × d) × AOV(b). Orders above or below the base daily run-rate, valued at the base average.
+- **refunds** = −(refunds(m) − refunds(b)).
+- **order value** = paid(m) − paid(b) − calendar − volume. This is the residual, so it absorbs rounding and the interaction term.
+
+Calendar and volume are rounded to whole pence, and order value is the integer residual, so calendar + volume + order value + refunds = net(m) − net(b) exactly for every channel. A channel with no orders in the base month puts its whole paid change in volume. The calendar adjustment applies to paid sales only, not to refund postings.
+
 ## API artifact contract
 
 `dashboard/data.json` is generated only after quality checks pass. Monetary fields in JSON use GBP display units, while the SQLite source of truth uses pence. It includes monthly and monthly-channel aggregates, overall channel totals, monthly cohort observations, quality results, quarantine reasons, the full daily reconciliation series, source provenance, and interpretation limits. The static dashboard does not issue database queries or expose raw customer-level records.

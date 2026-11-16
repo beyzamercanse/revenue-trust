@@ -39,6 +39,7 @@ flowchart LR
 | `mart_daily_revenue` | One `(day, channel)` | Certified additive financial measures |
 | `mart_reconciliation` | One day | Full date coverage, with zero as the missing-side amount |
 | `mart_cohorts` | One `(cohort month, activity month)` | First-paid-purchase cohort; distinct repeat customers |
+| `mart_month_channel` | One `(month, channel)` | Input to the channel bridge; must sum to `mart_daily_revenue` (publication gate) |
 
 ## Failure handling
 

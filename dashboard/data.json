@@ -244,6 +244,64 @@
       "amount": -3459.14
     }
   ],
+  "channel_bridge": {
+    "base_month": "2025-05",
+    "compare_month": "2025-06",
+    "days": [
+      31,
+      30
+    ],
+    "channels": [
+      {
+        "channel": "Mobile",
+        "base_net": 26640.63,
+        "compare_net": 15372.06,
+        "base_orders": 302,
+        "compare_orders": 214,
+        "calendar": -889.52,
+        "volume": -7145.62,
+        "order_value": -834.89,
+        "refunds": -2398.54,
+        "total": -11268.57,
+        "share_of_change": 0.9181
+      },
+      {
+        "channel": "Web",
+        "base_net": 51874.97,
+        "compare_net": 48014.94,
+        "base_orders": 603,
+        "compare_orders": 562,
+        "calendar": -1711.8,
+        "volume": -1896.32,
+        "order_value": 723.91,
+        "refunds": -975.82,
+        "total": -3860.03,
+        "share_of_change": 0.3145
+      },
+      {
+        "channel": "Marketplace",
+        "base_net": 24048.84,
+        "compare_net": 26903.9,
+        "base_orders": 276,
+        "compare_orders": 301,
+        "calendar": -806.86,
+        "volume": 3072.51,
+        "order_value": 674.19,
+        "refunds": -84.78,
+        "total": 2855.06,
+        "share_of_change": -0.2326
+      }
+    ],
+    "total": {
+      "base_net": 102564.44,
+      "compare_net": 90290.9,
+      "calendar": -3408.18,
+      "volume": -5969.43,
+      "order_value": 563.21,
+      "refunds": -3459.14,
+      "total": -12273.54
+    }
+  },
   "cohort": [
     {
       "cohort": "2025-01",
@@ -434,6 +492,11 @@
     },
     {
       "name": "Cohort bounds",
+      "failures": 0,
+      "status": "pass"
+    },
+    {
+      "name": "Month x channel mart matches daily mart",
       "failures": 0,
       "status": "pass"
     }
@@ -1550,7 +1613,8 @@
   "findings": [
     "2025-06 net revenue changed by -11.97% versus 2025-05; the calendar-adjusted daily change was -9.03%.",
     "3 invalid refund records were quarantined before publication.",
-    "All 181 modeled days reconcile to the fictional ledger at integer-pence precision."
+    "All 181 modeled days reconcile to the fictional ledger at integer-pence precision.",
+    "Mobile accounts for 92% of the change: -\u00a37,145.62 from fewer paid orders than its May daily run-rate and -\u00a32,398.54 from higher refunds. -\u00a33,408.18 of the total is only the shorter month."
   ],
   "limitations": [
     "No cost-of-goods data: net revenue is not profit.",

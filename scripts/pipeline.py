@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import date
 
 from generate_demo import generate
+from bridge import channel_bridge, in_pounds
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = {
@@ -22,6 +23,11 @@ FIELDS = {
     "refunds": ["refund_id","order_id","refund_date","amount_cents","version"],
     "ledger": ["entry_id","entry_date","order_id","amount_cents","entry_type"],
 }
+
+
+def money(cents):
+    sign = "-" if cents < 0 else "+"
+    return "%s£%s" % (sign, format(abs(cents) / 100, ",.2f"))
 
 
 def rows(conn, sql):
@@ -85,6 +91,7 @@ def quality_checks(conn):
         ("No negative paid amounts", "SELECT COUNT(*) FROM fct_orders WHERE paid_cents<0"),
         ("Daily ledger reconciliation", "SELECT COUNT(*) FROM mart_reconciliation WHERE difference_cents<>0"),
         ("Cohort bounds", "SELECT COUNT(*) FROM mart_cohorts WHERE retention_rate<0 OR retention_rate>1"),
+        ("Month x channel mart matches daily mart", "SELECT ABS((SELECT COALESCE(SUM(net_cents),0) FROM mart_month_channel)-(SELECT COALESCE(SUM(net_cents),0) FROM mart_daily_revenue))"),
     ]
     return [{"name": name, "failures": conn.execute(sql).fetchone()[0], "status": "pass" if conn.execute(sql).fetchone()[0]==0 else "fail"}
             for name, sql in checks]
@@ -117,6 +124,8 @@ def export(conn, root):
         {"driver":"Average paid order value", "amount":round((june_paid/june["orders"]-may_paid/may["orders"])*june["orders"],2)},
         {"driver":"Refund postings", "amount":round(may["refunds"]-june["refunds"],2)},
     ]
+    bridge = channel_bridge(rows(conn, "SELECT * FROM mart_month_channel"), may["month"], june["month"])
+    worst = bridge["channels"][0]
     quality_counts = {
         "unique_order_versions": conn.execute("SELECT COUNT(*) FROM raw_orders").fetchone()[0],
         "current_orders": conn.execute("SELECT COUNT(*) FROM stg_orders").fetchone()[0],
@@ -136,6 +145,7 @@ def export(conn, root):
         ],
         "monthly": monthly, "channels": channels, "monthly_channels": monthly_channels,
         "drivers": drivers,
+        "channel_bridge": in_pounds(bridge),
         "cohort": rows(conn, "SELECT * FROM mart_cohorts ORDER BY cohort,month_index"),
         "quality": quality, "quality_counts":quality_counts, "quarantine":quarantine,
         "reconciliation": rows(conn, "SELECT day,model_cents/100.0 AS model_amount,ledger_cents/100.0 AS ledger_amount,difference_cents/100.0 AS difference FROM mart_reconciliation ORDER BY day"),
@@ -143,6 +153,8 @@ def export(conn, root):
             "%s net revenue changed by %+.2f%% versus %s; the calendar-adjusted daily change was %+.2f%%." % (june["month"],monthly_delta,may["month"],daily_delta),
             "%d invalid refund records were quarantined before publication." % quality_counts["quarantined_refunds"],
             "All %d modeled days reconcile to the fictional ledger at integer-pence precision." % quality_counts["reconciled_days"],
+            "%s accounts for %.0f%% of the change: %s from fewer paid orders than its May daily run-rate and %s from higher refunds. %s of the total is only the shorter month." % (
+                worst["channel"], 100*worst["share_of_change"], money(worst["volume_cents"]), money(worst["refunds_cents"]), money(bridge["total"]["calendar_cents"])),
         ],
         "limitations": ["No cost-of-goods data: net revenue is not profit.", "No traffic or exposure data: cancelled-order share is not website conversion.",
                         "Refund rate uses refund posting date, so it is a period amount ratio, not an order-level refund probability.",

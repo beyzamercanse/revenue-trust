@@ -1,14 +1,32 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Beyza Mercan's analytics and data engineering portfolio: reproducible revenue models, product experiments and resilient data pipelines.">
-  <title>Beyza Mercan — Data Portfolio</title>
-  <link rel="stylesheet" href="assets/style.css">
-  <script defer src="data.js"></script><script defer src="assets/app.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revenue Trust Dashboard</title>
+<meta name="description" content="Revenue models built from raw orders, refunds and a payment ledger, published only when every day reconciles, and a May→June bridge that traces the drop to a channel.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Figtree:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
 </head>
-<body><a class="skip" href="#main">Skip to content</a>
-<header class="site-header"><a class="brand" href="#home" aria-label="Beyza Mercan home"><span class="monogram">bm<span>↗</span></span><span>Beyza Mercan<small>DATA & ANALYTICS</small></span></a><nav aria-label="Main navigation"><a href="#home">Selected work</a><a href="#approach">Approach</a><a href="https://github.com/beyzamercanse" target="_blank" rel="noopener">GitHub ↗</a></nav></header>
-<main id="main"></main>
-<footer><span>Beyza Mercan · Analytics engineering / Data analysis / Data engineering</span><span>Reproducible projects. Explicit assumptions.</span></footer>
-</body></html>
+<body>
+<header class="site-header">
+  <a class="brand" href="https://beyzamercanse.github.io/project1/"><span class="monogram">HM</span><span class="brand-name">Hera Beyza Mercan</span></a>
+  <nav class="site-nav" aria-label="Main"><a href="https://beyzamercanse.github.io/project1/work/revenue-trust.html">Project write-up</a><a href="https://github.com/beyzamercanse/revenue-trust">Code</a></nav>
+</header>
+<main>
+  <div class="col stack">
+    <h1>Revenue Trust</h1>
+    <p class="lead">Revenue models built from raw orders, refunds and a payment ledger, published only when every day reconciles, and a May→June bridge that traces the drop to a channel.</p>
+    <p class="small muted">Simulated e-commerce scenario (seed 41), January–June 2025. Every figure is read from <code>dashboard/data.json</code>, which the pipeline writes. Run <code>python3 dashboard/refresh.py</code> after a new pipeline run.</p>
+  </div>
+  <section class="dash" id="dashboard" aria-label="Dashboard"></section>
+</main>
+<footer class="site-footer"><span>Hera Beyza Mercan · Amsterdam</span><a href="https://github.com/beyzamercanse/revenue-trust">github.com/beyzamercanse/revenue-trust</a></footer>
+<script src="data.js"></script>
+<script src="charts.js"></script>
+<script src="dashboards.js"></script>
+<script>Dashboards.render('revenue-trust', document.getElementById('dashboard'), window.PROJECT_DATA, { tiles: true });</script>
+</body>
+</html>
